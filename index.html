@@ -1,91 +1,174 @@
-
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
   <meta charset="UTF-8">
-  <title>Consulta de BWC</title>
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <title>Consulta de Saldo - BWC Token</title>
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: Arial, sans-serif;
-      background: #f0f4f8;
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #0d1117;
+      color: #c9d1d9;
       padding: 40px;
-      text-align: center;
     }
-    .card {
-      background: white;
-      max-width: 500px;
+
+    h1, h2 {
+      color: #58a6ff;
+    }
+
+    .container {
+      max-width: 600px;
       margin: auto;
+      background-color: #161b22;
       padding: 30px;
-      border-radius: 15px;
-      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0, 123, 255, 0.2);
     }
+
     input {
-      padding: 10px;
-      width: 80%;
-      margin-bottom: 15px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-    }
-    button {
-      padding: 10px 20px;
+      width: 100%;
+      padding: 12px;
       border: none;
-      background: #3b82f6;
-      color: white;
-      font-weight: bold;
-      border-radius: 8px;
-      cursor: pointer;
+      border-radius: 6px;
+      margin-top: 10px;
+      background-color: #0d1117;
+      color: #c9d1d9;
+      font-size: 16px;
+      border: 1px solid #30363d;
+      outline: none;
+      transition: 0.3s;
     }
-    .result {
+
+    input:focus {
+      border-color: #58a6ff;
+    }
+
+    button {
       margin-top: 20px;
-      text-align: left;
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(145deg, #1f6feb, #2363d1);
+      border: none;
+      border-radius: 6px;
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.2s ease-in-out;
+    }
+
+    button:hover {
+      background: linear-gradient(145deg, #2363d1, #1f6feb);
+      transform: scale(1.02);
+    }
+
+    #resultado {
+      margin-top: 30px;
+      background-color: #0d1117;
+      padding: 20px;
+      border-left: 4px solid #58a6ff;
+      border-radius: 8px;
+      font-size: 16px;
+      line-height: 1.6;
+      white-space: pre-line;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 40px;
+      font-size: 14px;
+      color: #8b949e;
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 20px;
+      }
+
+      .container {
+        padding: 20px;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h2>Consultar saldo BWC e valor em USD</h2>
-    <input type="text" id="walletInput" placeholder="Digite o endereço da carteira" />
-    <br>
+  <div class="container">
+    <h2>🔍 Consulta de Saldo - BWC Token (USDT)</h2>
+    <label for="wallet">Digite o endereço da carteira BSC:</label>
+    <input type="text" id="wallet" placeholder="0x...">
     <button onclick="consultar()">Consultar</button>
-    <div class="result" id="resultado"></div>
+    <div id="resultado"></div>
+  </div>
+
+  <div class="footer">
+    Projeto Vem Ser • Powered by Web3 💙
   </div>
 
   <script>
-    const provider = new ethers.providers.JsonRpcProvider("https://bsc-dataseed.binance.org/");
+    const web3 = new Web3("https://bsc-dataseed.binance.org/");
     const tokenAddress = "0x57a8F55a341B0d157d45AceB5ea2BbaB623c882C";
 
-    const abi = [
-      "function balanceOf(address owner) view returns (uint256)",
-      "function getBWCPriceInUSD() view returns (uint256)"
+    const tokenABI = [
+      {
+        constant: true,
+        inputs: [{ name: "", type: "address" }],
+        name: "balanceOf",
+        outputs: [{ name: "", type: "uint256" }],
+        type: "function",
+      },
+      {
+        constant: true,
+        inputs: [],
+        name: "decimals",
+        outputs: [{ name: "", type: "uint8" }],
+        type: "function",
+      },
+      {
+        constant: true,
+        inputs: [],
+        name: "getUSDPrice",
+        outputs: [{ name: "", type: "uint256" }],
+        type: "function",
+      }
     ];
 
-    const contrato = new ethers.Contract(tokenAddress, abi, provider);
+    const token = new web3.eth.Contract(tokenABI, tokenAddress);
 
     async function consultar() {
-      const wallet = document.getElementById("walletInput").value.trim();
-      if (!ethers.utils.isAddress(wallet)) {
-        alert("Endereço inválido");
+      const wallet = document.getElementById("wallet").value.trim();
+      const res = document.getElementById("resultado");
+
+      if (!web3.utils.isAddress(wallet)) {
+        res.innerText = "⚠️ Endereço inválido.";
         return;
       }
 
+      res.innerText = "⏳ Consultando...";
+
       try {
-        const saldoRaw = await contrato.balanceOf(wallet);
-        const precoRaw = await contrato.getBWCPriceInUSD();
+        const [saldoRaw, decimais, precoRaw] = await Promise.all([
+          token.methods.balanceOf(wallet).call(),
+          token.methods.decimals().call(),
+          token.methods.getUSDPrice().call()
+        ]);
 
-        const saldo = ethers.utils.formatUnits(saldoRaw, 18);
-        const preco = ethers.utils.formatUnits(precoRaw, 18);
-        const valorTotal = parseFloat(saldo) * parseFloat(preco);
+        const saldo = saldoRaw / 10 ** decimais;
+        const precoUSD = precoRaw / 10 ** 18;
+        const totalUSD = saldo * precoUSD;
 
-        document.getElementById("resultado").innerHTML = `
-          <p><strong>Carteira:</strong> ${wallet}</p>
-          <p><strong>Saldo de BWC:</strong> ${saldo}</p>
-          <p><strong>Preço atual (via oráculo):</strong> $${parseFloat(preco).toFixed(4)}</p>
-          <p><strong>Valor total estimado:</strong> $${valorTotal.toFixed(2)}</p>
-        `;
-      } catch (err) {
-        console.error(err);
-        alert("Erro ao consultar contrato.");
+        res.innerText =
+          `📬 Endereço: ${wallet}\n\n` +
+          `💰 Saldo: ${saldo} USDT\n` +
+          `💵 Preço unitário: $${precoUSD.toFixed(4)} USD\n` +
+          `🧮 Valor total: $${totalUSD.toFixed(2)} USD`;
+      } catch (error) {
+        console.error(error);
+        res.innerText = "❌ Erro ao consultar saldo ou preço.";
       }
     }
   </script>
